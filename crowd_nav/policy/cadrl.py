@@ -115,7 +115,7 @@ class CADRL(Policy):
             # propagate state of humans
             next_px = state.px + action.vx * self.time_step
             next_py = state.py + action.vy * self.time_step
-            next_state = ObservableState(next_px, next_py, action.vx, action.vy, state.radius)
+            next_state = ObservableState(next_px, next_py, action.vx, action.vy, state.radius, state.attentive)
         elif isinstance(state, FullState):
             # propagate state of current agent
             # perform action without rotation

@@ -47,7 +47,7 @@ class Explorer(object):
             rewards = []
             while not done:
                 action = self.robot.act(ob)
-                ob, reward, done, info = self.env.step(action)
+                ob, reward, done, info, _,_,_ = self.env.step(action)
                 states.append(self.robot.policy.last_state)
                 actions.append(action)
                 rewards.append(reward)

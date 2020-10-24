@@ -172,7 +172,7 @@ def main(args):
         logging.info('Experience set size: %d/%d', len(memory), memory.capacity)
     episode = 0
     best_val_reward = -1
-    best_val_model = None
+    best_val_model = 0
     # evaluate the model after imitation learning
 
     if episode % evaluation_interval == 0:
@@ -232,13 +232,13 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--policy', type=str, default='model_predictive_rl')
-    parser.add_argument('--config', type=str, default='configs/icra_benchmark/mp_separate.py')
+    parser.add_argument('--policy', type=str, default='cadrl')
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/cadrl.py')
     parser.add_argument('--output_dir', type=str, default='data/output')
     parser.add_argument('--overwrite', default=False, action='store_true')
     parser.add_argument('--weights', type=str)
     parser.add_argument('--resume', default=False, action='store_true')
-    parser.add_argument('--gpu', default=False, action='store_true')
+    parser.add_argument('--gpu', default=True, action='store_true')
     parser.add_argument('--debug', default=False, action='store_true')
     parser.add_argument('--test_after_every_eval', default=False, action='store_true')
     parser.add_argument('--randomseed', type=int, default=17)

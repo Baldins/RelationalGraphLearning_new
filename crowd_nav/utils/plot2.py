@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--window_size', type=int, default=50)
     parser.add_argument('--models', type=str, default=None)
     args = parser.parse_args()
-    args.models = args.models.split(',')
+    # args.models = args.models.split(',')
 
     max_episodes = None
     _, ax4 = plt.subplots()
@@ -63,22 +63,22 @@ def main():
         with open(log_file, 'r') as file:
             log = file.read()
 
-        # val_pattern = r"VAL   in episode (?P<episode>\d+) has success rate: (?P<sr>[0-1].\d+), " \
-        #               r"collision rate: (?P<cr>[0-1].\d+), nav time: (?P<time>\d+.\d+), " \
-        #               r"total reward: (?P<reward>[-+]?\d+.\d+)"
-        # val_episode = []
-        # val_sr = []
-        # val_cr = []
-        # val_time = []
-        # val_reward = []
-        # for r in re.findall(val_pattern, log):
-        #     val_episode.append(int(r[0]))
-        #     val_sr.append(float(r[1]))
-        #     val_cr.append(float(r[2]))
-        #     val_time.append(float(r[3]))
-        #     val_reward.append(float(r[4]))
+        val_pattern = r"VAL   in episode (?P<episode>\d+) has success rate: (?P<sr>[0-1].\d+), " \
+                      r"collision rate: (?P<cr>[0-1].\d+), nav time: (?P<time>\d+.\d+), " \
+                      r"total reward: (?P<reward>[-+]?\d+.\d+)"
+        val_episode = []
+        val_sr = []
+        val_cr = []
+        val_time = []
+        val_reward = []
+        for r in re.findall(val_pattern, log):
+            val_episode.append(int(r[0]))
+            val_sr.append(float(r[1]))
+            val_cr.append(float(r[2]))
+            val_time.append(float(r[3]))
+            val_reward.append(float(r[4]))
 
-        train_pattern = r"TRAIN in episode (?P<episode>\d+)  in epoch (?P<epoch>\d+) has success rate: (?P<sr>[0-1].\d+), " \
+        train_pattern = r"TRAIN in episode (?P<episode>\d+) has success rate: (?P<sr>[0-1].\d+), " \
                         r"collision rate: (?P<cr>[0-1].\d+), nav time: (?P<time>\d+.\d+), " \
                         r"total reward: (?P<reward>[-+]?\d+.\d+), average return: (?P<return>[-+]?\d+.\d+)"
         train_episode = []
@@ -89,11 +89,11 @@ def main():
         train_avg_return = []
         for r in re.findall(train_pattern, log):
             train_episode.append(int(r[0]))
-            train_sr.append(float(r[2]))
-            train_cr.append(float(r[3]))
-            train_time.append(float(r[4]))
-            train_reward.append(float(r[5]))
-            train_avg_return.append(float(r[6]))
+            train_sr.append(float(r[1]))
+            train_cr.append(float(r[2]))
+            train_time.append(float(r[3]))
+            train_reward.append(float(r[4]))
+            train_avg_return.append(float(r[5]))
         if max_episodes is not None:
             train_episode = train_episode[:max_episodes]
             train_sr = train_sr[:max_episodes]

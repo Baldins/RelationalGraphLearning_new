@@ -189,7 +189,7 @@ class ModelPredictiveRL(Policy):
         self.rotations = rotations
         self.action_space = action_space
 
-    def predict(self, state):
+    def predict(self, state, non_attentive_humans):
         """
         A base class for all methods that takes pairwise joint state as input to value network.
         The input to the value network is always of shape (batch_size, # humans, rotated joint state length)
@@ -221,7 +221,7 @@ class ModelPredictiveRL(Policy):
 
             for action in action_space_clipped:
                 state_tensor = state.to_tensor(add_batch_size=True, device=self.device)
-                next_state = self.state_predictor(state_tensor, action)
+                next_state = self.state_predictor(state_tensor, action, non_attentive_humans)
                 max_next_return, max_next_traj = self.V_planning(next_state, self.planning_depth, self.planning_width)
                 reward_est = self.estimate_reward(state, action)
                 value = reward_est + self.get_normalized_gamma() * max_next_return

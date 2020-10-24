@@ -17,7 +17,7 @@ class StatePredictor(nn.Module):
         self.human_motion_predictor = mlp(config.gcn.X_dim, config.model_predictive_rl.motion_predictor_dims)
         self.time_step = time_step
 
-    def forward(self, state, action, detach=False):
+    def forward(self, state, action, non_attentive_humans, detach=False):
         """ Predict the next state tensor given current state as input.
 
         :return: tensor of shape (batch_size, # of agents, feature_size)

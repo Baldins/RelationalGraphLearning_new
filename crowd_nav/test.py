@@ -4,6 +4,7 @@ import importlib.util
 import os
 import torch
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import gym
 from crowd_nav.utils.explorer import Explorer
@@ -18,13 +19,14 @@ def main(args):
     logging.basicConfig(level=level, format='%(asctime)s, %(levelname)s: %(message)s',
                         datefmt="%Y-%m-%d %H:%M:%S")
     device = torch.device("cuda:0" if torch.cuda.is_available() and args.gpu else "cpu")
+
     logging.info('Using device: %s', device)
 
     if args.model_dir is not None:
         if args.config is not None:
             config_file = args.config
         else:
-            config_file = os.path.join(args.model_dir, 'config.py')
+            config_file = os.path.join(args.model_dir, 'configs/icra_benchmark/config.py')
         if args.il:
             model_weights = os.path.join(args.model_dir, 'il_model.pth')
             logging.info('Loaded IL weights')
@@ -74,6 +76,9 @@ def main(args):
     env = gym.make('CrowdSim-v0')
     env.configure(env_config)
 
+    PPL = env.human_num
+
+
     if args.square:
         env.test_scenario = 'square_crossing'
     if args.circle:
@@ -105,51 +110,169 @@ def main(args):
     policy.set_env(env)
     robot.print_info()
 
-    if args.visualize:
+
+    ppl_local = []
+    robot_states = []
+    robot_vel = []
+
+    for case in range(args.test_case):
         rewards = []
-        ob = env.reset(args.phase, args.test_case)
+        ob = env.reset(test_case=case)
+
+        # ob = env.reset(args.phase, args.test_case)
         done = False
         last_pos = np.array(robot.get_position())
         while not done:
             action = robot.act(ob)
-            ob, _, done, info = env.step(action)
+            ob, _, done, info, ppl_count, robot_pose, robot_velocity, dmin = env.step(action)
             rewards.append(_)
+
+            ppl_local.append(ppl_count)
+            robot_states.append(robot_pose)
+            robot_vel.append(robot_velocity)
+
+
             current_pos = np.array(robot.get_position())
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
+
         gamma = 0.9
         cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
              * reward for t, reward in enumerate(rewards)])
 
-        if args.traj:
-            env.render('traj', args.video_file)
-        else:
-            if args.video_dir is not None:
-                if policy_config.name == 'gcn':
-                    args.video_file = os.path.join(args.video_dir, policy_config.name + '_' + policy_config.gcn.similarity_function)
-                else:
-                    args.video_file = os.path.join(args.video_dir, policy_config.name)
-                args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
-            env.render('video', args.video_file)
+        if args.visualize:
+
+            if args.traj:
+                env.render('traj', args.video_file)
+            else:
+                if args.video_dir is not None:
+                    if policy_config.name == 'gcn':
+                        args.video_file = os.path.join(args.video_dir, policy_config.name + '_' + policy_config.gcn.similarity_function)
+                    else:
+                        args.video_file = os.path.join(args.video_dir, policy_config.name)
+                    args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
+                env.render('video', args.video_file)
+
         logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f', env.global_time, info, cumulative_reward)
         if robot.visible and info == 'reach goal':
             human_times = env.get_human_times()
             logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
-    else:
-        explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
-        if args.plot_test_scenarios_hist:
-            test_angle_seeds = np.array(env.test_scene_seeds)
-            b = [i * 0.01 for i in range(101)]
-            n, bins, patches = plt.hist(test_angle_seeds, b, facecolor='g')
-            plt.savefig(os.path.join(args.model_dir, 'test_scene_hist.png'))
-            plt.close()
+
+        if robot.visible and info == 'reach goal':
+            human_times = env.get_human_times()
+
+            logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+
+        # logging.info('PPl counter ', ppl_local)
+        main = "Results/"
+        human_policy = args.human_policy
+        if human_policy == 'socialforce':
+            maindir = 'SocialForce/'
+            if not os.path.exists(main+maindir):
+                os.mkdir(main+maindir)
+        else:
+            maindir = 'ORCA/'
+            if not os.path.exists(main+maindir):
+                os.mkdir(main+maindir)
+
+        robot_policy = args.policy
+        trained_env = args.trained_env
+        if robot_policy == 'ssp':
+            method_dir = 'ssp/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+        if (robot_policy == 'model_predictive_rl'and trained_env == 'orca'):
+            method_dir = 'model_predictive_rl/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+        if (robot_policy == 'model_predictive_rl' and trained_env == 'socialforce'):
+            method_dir = 'model_predictive_rl_social/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+
+        if (robot_policy == 'rgl'and trained_env == 'orca'):
+            method_dir = 'rgl/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+        if (robot_policy == 'rgl' and trained_env == 'socialforce'):
+            method_dir = 'rgl_social/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+
+        if robot_policy == 'ssp2':
+            method_dir = 'ssp2/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+        elif robot_policy == 'cadrl':
+            method_dir = 'cadrl/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+        elif robot_policy == 'sarl':
+            method_dir = 'sarl/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+        elif robot_policy == 'lstm_rl':
+            method_dir = 'lstm_rl/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+        elif robot_policy == 'orca':
+            method_dir = 'orca/'
+            if not os.path.exists(main+maindir + method_dir):
+                os.mkdir(main+maindir + method_dir)
+
+        robot_data = pd.DataFrame()
+        robot_data['robot_x'] = np.array(robot_states)[:, 0]
+        robot_data['robot_y'] = np.array(robot_states)[:, 1]
+        robot_data['local_ppl_cnt'] = np.array(ppl_local)
+
+        out_name = f'robot_data{case}.csv'
+
+        if not os.path.exists(main+maindir + method_dir + f'{PPL}/'):
+            os.mkdir(main+maindir + method_dir + f'{PPL}/')
+        # outdir = f'{PPL}/robot_data_{PPL}/'
+        if not os.path.exists(main+maindir + method_dir + f'{PPL}/robot_data_{PPL}/'):
+            os.mkdir(main+maindir + method_dir + f'{PPL}/robot_data_{PPL}/')
+
+        fullname = os.path.join(main+maindir + method_dir + f'{PPL}/robot_data_{PPL}/', out_name)
+
+        robot_data.to_csv(fullname, index=True)
+
+        if not os.path.exists(main+maindir + method_dir + f'{PPL}/time_{PPL}'):
+            os.mkdir(main+maindir + method_dir + f'{PPL}/time_{PPL}')
+        Time_data = pd.DataFrame()
+        Time_data['time (s)'] = [env.global_time]
+        Time_data['mean_local'] = np.mean(ppl_local)
+        Time_data['std_local'] = np.std(ppl_local)
+        Time_data['collision_flag'] = info
+        Time_data['dmin'] = dmin
+
+        Time_data.to_csv(main+maindir + method_dir + f'{PPL}/time_{PPL}/robot_time_data_seconds_{PPL}_{case}.csv')
+
+        if not os.path.exists(main+maindir + method_dir + f'{PPL}/localdensity_{PPL}'):
+            os.mkdir(main+maindir + method_dir + f'{PPL}/localdensity_{PPL}')
+        LD = pd.DataFrame()
+        LD['local_ppl_cnt'] = np.array(ppl_local)
+        LD['vx'] = np.array(robot_vel)[:, 0]
+        LD['vy'] = np.array(robot_vel)[:, 1]
+        LD.to_csv(main+maindir + method_dir + f'{PPL}/localdensity_{PPL}/localdensity_{PPL}_{case}.csv')
+
+
+
+        # else:
+        #     explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
+        #     if args.plot_test_scenarios_hist:
+        #         test_angle_seeds = np.array(env.test_scene_seeds)
+        #         b = [i * 0.01 for i in range(101)]
+        #         n, bins, patches = plt.hist(test_angle_seeds, b, facecolor='g')
+        #         plt.savefig(os.path.join(args.model_dir, 'test_scene_hist.png'))
+        #         plt.close()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--config', type=str, default=None)
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/mp_separate.py')
     parser.add_argument('--policy', type=str, default='model_predictive_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default=None)
+    parser.add_argument('-m', '--model_dir', type=str, default='data/output')
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
@@ -159,7 +282,7 @@ if __name__ == '__main__':
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
     parser.add_argument('--video_file', type=str, default=None)
-    parser.add_argument('--video_dir', type=str, default=None)
+    parser.add_argument('--video_dir', type=str, default="none")
     parser.add_argument('--traj', default=False, action='store_true')
     parser.add_argument('--debug', default=False, action='store_true')
     parser.add_argument('--human_num', type=int, default=None)
@@ -169,6 +292,9 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--planning_depth', type=int, default=None)
     parser.add_argument('-w', '--planning_width', type=int, default=None)
     parser.add_argument('--sparse_search', default=False, action='store_true')
+    parser.add_argument('--human_policy',  type=str, default='socialforce')
+    parser.add_argument('--trained_env',  type=str, default='orca')
+
 
     sys_args = parser.parse_args()
 

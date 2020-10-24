@@ -27,7 +27,7 @@ class CrowdSim(gym.Env):
         robot is controlled by a known and learnable policy.
 
         """
-        self.time_limit = None
+        self.time_limit = 150
         self.time_step = None
         self.robot = None
         self.humans = None
@@ -137,7 +137,7 @@ class CrowdSim(gym.Env):
                         break
                 if not collide:
                     break
-            human.set(px, py, -px, -py, 0, 0, 0)
+            human.set(px, py, -px+1, -py+1, 0, 0, 0)
 
         elif self.current_scenario == 'square_crossing':
             if np.random.random() > 0.5:
@@ -266,9 +266,20 @@ class CrowdSim(gym.Env):
                 ob = self.compute_observation_for(human)
                 human_actions.append(human.act(ob))
 
+                # if human.reached_destination():
+                #     print("reached")
+                #     if np.random.random() > 0.5:
+                #         sign = -1
+                #     else:
+                #         sign = 1
+                #     # human.set_goal_position([ np.random.random(), (np.random.random()) ])
+                #     human.set(human.px, human.py, np.random.random() * self.square_width * 0.5 * -sign,
+                #               (np.random.random() - 0.5) * self.square_width, 0, 0, 0)
+
         # collision detection
         dmin = float('inf')
         collision = False
+        ppl_count = 0
         for i, human in enumerate(self.humans):
             px = human.px - self.robot.px
             py = human.py - self.robot.py
@@ -288,6 +299,8 @@ class CrowdSim(gym.Env):
                 break
             elif closest_dist < dmin:
                 dmin = closest_dist
+            elif closest_dist < 3:
+                ppl_count += 1
 
         # collision detection between humans
         human_num = len(self.humans)
@@ -365,7 +378,7 @@ class CrowdSim(gym.Env):
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
 
-        return ob, reward, done, info
+        return ob, reward, done, info, ppl_count, self.robot.get_position(), self.robot.get_velocity(), dmin
 
     def compute_observation_for(self, agent):
         if agent == self.robot:
@@ -382,10 +395,12 @@ class CrowdSim(gym.Env):
         from matplotlib import animation
         import matplotlib.pyplot as plt
         # plt.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
-        x_offset = 0.2
-        y_offset = 0.4
+        x_offset = 0.11
+        y_offset = 0.11
         cmap = plt.cm.get_cmap('hsv', 10)
-        robot_color = 'black'
+        robot_color = 'yellow'
+        goal_color = 'red'
+        arrow_color = 'red'
         arrow_style = patches.ArrowStyle("->", head_length=4, head_width=2)
         display_numbers = True
 
@@ -416,8 +431,10 @@ class CrowdSim(gym.Env):
 
             for k in range(len(self.states)):
                 if k % 4 == 0 or k == len(self.states) - 1:
-                    robot = plt.Circle(robot_positions[k], self.robot.radius, fill=False, color=robot_color)
-                    humans = [plt.Circle(human_positions[k][i], self.humans[i].radius, fill=False, color=cmap(i))
+                    robot = plt.Circle(robot_positions[k], self.robot.radius, fill=True, color=robot_color)
+                    # humans = [plt.Circle(human_positions[k][i], self.humans[i].radius, fill=False, color=cmap(i))
+                    #           for i in range(len(self.humans))]
+                    humans = [plt.Circle(human_positions[k][i], self.humans[i].radius, fill=False)
                               for i in range(len(self.humans))]
                     ax.add_artist(robot)
                     for human in humans:
@@ -448,8 +465,8 @@ class CrowdSim(gym.Env):
         elif mode == 'video':
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.tick_params(labelsize=12)
-            ax.set_xlim(-11, 11)
-            ax.set_ylim(-11, 11)
+            ax.set_xlim(-6, 6)
+            ax.set_ylim(-6, 6)
             ax.set_xlabel('x(m)', fontsize=14)
             ax.set_ylabel('y(m)', fontsize=14)
             show_human_start_goal = False
@@ -476,9 +493,9 @@ class CrowdSim(gym.Env):
             # add robot and its goal
             robot_positions = [state[0].position for state in self.states]
             goal = mlines.Line2D([self.robot.get_goal_position()[0]], [self.robot.get_goal_position()[1]],
-                                 color=robot_color, marker='*', linestyle='None',
+                                 color=goal_color, marker='*', linestyle='None',
                                  markersize=15, label='Goal')
-            robot = plt.Circle(robot_positions[0], self.robot.radius, fill=False, color=robot_color)
+            robot = plt.Circle(robot_positions[0], self.robot.radius, fill=True, color=robot_color)
             # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
             ax.add_artist(robot)
             ax.add_artist(goal)
@@ -486,7 +503,9 @@ class CrowdSim(gym.Env):
 
             # add humans and their numbers
             human_positions = [[state[1][j].position for j in range(len(self.humans))] for state in self.states]
-            humans = [plt.Circle(human_positions[0][i], self.humans[i].radius, fill=False, color=cmap(i))
+            # humans = [plt.Circle(human_positions[0][i], self.humans[i].radius, fill=False, color=cmap(i))
+            #           for i in range(len(self.humans))]
+            humans = [plt.Circle(human_positions[0][i], self.humans[i].radius, fill=False)
                       for i in range(len(self.humans))]
 
             # disable showing human numbers
@@ -531,7 +550,8 @@ class CrowdSim(gym.Env):
                     arrows = [patches.FancyArrowPatch(*orientation[0], color=arrow_color, arrowstyle=arrow_style)]
                 else:
                     arrows.extend(
-                        [patches.FancyArrowPatch(*orientation[0], color=human_colors[i - 1], arrowstyle=arrow_style)])
+                        # [patches.FancyArrowPatch(*orientation[0], color=human_colors[i - 1], arrowstyle=arrow_style)])
+                        [patches.FancyArrowPatch(*orientation[0], color=arrow_color, arrowstyle=arrow_style)])
 
             for arrow in arrows:
                 ax.add_artist(arrow)
@@ -546,13 +566,16 @@ class CrowdSim(gym.Env):
                                              for i in range(self.human_num)]
                     human_future_positions.append(human_future_position)
 
-                for i in range(self.human_num):
-                    circles = []
-                    for j in range(self.robot.policy.planning_depth):
-                        circle = plt.Circle(human_future_positions[0][i][j], self.humans[0].radius/(1.7+j), fill=False, color=cmap(i))
-                        ax.add_artist(circle)
-                        circles.append(circle)
-                    human_future_circles.append(circles)
+
+
+                # for i in range(self.human_num):
+                #     circles = []
+                #
+                #     for j in range(self.robot.policy.planning_depth):
+                #         circle = plt.Circle(human_future_positions[0][i][j], self.humans[0].radius/(1.7+j), fill=False, color=cmap(i))
+                #         ax.add_artist(circle)
+                #         circles.append(circle)
+                #     human_future_circles.append(circles)
 
             def update(frame_num):
                 nonlocal global_step
@@ -573,7 +596,9 @@ class CrowdSim(gym.Env):
                         arrows = [patches.FancyArrowPatch(*orientation[frame_num], color='black',
                                                           arrowstyle=arrow_style)]
                     else:
-                        arrows.extend([patches.FancyArrowPatch(*orientation[frame_num], color=cmap(i - 1),
+                        # arrows.extend([patches.FancyArrowPatch(*orientation[frame_num], color=cmap(i - 1),
+                        #                                        arrowstyle=arrow_style)])
+                        arrows.extend([patches.FancyArrowPatch(*orientation[frame_num], color='black',
                                                                arrowstyle=arrow_style)])
 
                 for arrow in arrows:
@@ -636,6 +661,7 @@ class CrowdSim(gym.Env):
                     print(self.Xs[global_step])
 
             def on_click(event):
+                anim.running == True
                 if anim.running:
                     anim.event_source.stop()
                     if event.key == 'a':
@@ -645,25 +671,29 @@ class CrowdSim(gym.Env):
                             print_feat()
                         if hasattr(self.robot.policy, 'get_X'):
                             print_X()
-                        # if hasattr(self.robot.policy, 'action_values'):
-                        #    plot_value_heatmap()
+                        if hasattr(self.robot.policy, 'action_values'):
+                           plot_value_heatmap()
                 else:
                     anim.event_source.start()
-                anim.running ^= True
+                anim.running = False
 
             fig.canvas.mpl_connect('key_press_event', on_click)
-            anim = animation.FuncAnimation(fig, update, frames=len(self.states), interval=self.time_step * 500)
-            anim.running = True
+            anim = animation.FuncAnimation(fig, update, frames=len(self.states), interval=self.time_step * 50, repeat = False )
 
-            if output_file is not None:
-                # save as video
-                ffmpeg_writer = animation.FFMpegWriter(fps=10, metadata=dict(artist='Me'), bitrate=1800)
-                # writer = ffmpeg_writer(fps=10, metadata=dict(artist='Me'), bitrate=1800)
-                anim.save(output_file, writer=ffmpeg_writer)
+            anim.running = False
+
+            # if output_file is not None:
+            #     # save as video
+            #     # ffmpeg_writer = animation.FFMpegWriter(fps=10, metadata=dict(artist='Me'), bitrate=1800)
+            #     # # writer = ffmpeg_writer(fps=10, metadata=dict(artist='Me'), bitrate=1800)
+            #     # anim.save(output_file, writer=ffmpeg_writer)
+            #     ffmpeg_writer = animation.writers['ffmpeg']
+            #     writer = ffmpeg_writer(fps=10, metadata=dict(artist='Me'), bitrate=1800)
+            #     anim.save("/home/fbaldini/Desktop/social_mprl_5.mp4", writer=writer)
 
                 # save output file as gif if imagemagic is installed
                 # anim.save(output_file, writer='imagemagic', fps=12)
-            else:
-                plt.show()
+            # else:
+            #     plt.show()
         else:
             raise NotImplementedError

@@ -27,6 +27,7 @@ class Agent(object):
         self.vy = None
         self.theta = None
         self.time_step = None
+        self.attentive = False
 
     def print_info(self):
         logging.info('Agent is {} and has {} kinematic constraint'.format(
@@ -63,7 +64,7 @@ class Agent(object):
             self.v_pref = v_pref
 
     def get_observable_state(self):
-        return ObservableState(self.px, self.py, self.vx, self.vy, self.radius)
+        return ObservableState(self.px, self.py, self.vx, self.vy, self.radius, self.attentive)
 
     def get_next_observable_state(self, action):
         self.check_validity(action)
@@ -75,7 +76,15 @@ class Agent(object):
         else:
             next_vx = action.v * np.cos(self.theta)
             next_vy = action.v * np.sin(self.theta)
-        return ObservableState(next_px, next_py, next_vx, next_vy, self.radius)
+        return ObservableState(next_px, next_py, next_vx, next_vy, self.radius, self.attentive)
+
+
+    def set_non_attentive(self):
+        self.attentive = False
+
+    def set_attentive(self):
+        self.attentive = True
+
 
     def get_full_state(self):
         return FullState(self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy, self.v_pref, self.theta)

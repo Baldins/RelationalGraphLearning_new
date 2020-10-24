@@ -10,10 +10,9 @@ class Config(object):
     def __init__(self):
         pass
 
-
 class BaseEnvConfig(object):
     env = Config()
-    env.time_limit = 30
+    env.time_limit = 150
     env.time_step = 0.25
     env.val_size = 100
     env.test_size = 500
@@ -30,21 +29,21 @@ class BaseEnvConfig(object):
     sim = Config()
     sim.train_val_scenario = 'circle_crossing'
     sim.test_scenario = 'circle_crossing'
-    sim.square_width = 20
-    sim.circle_radius = 4
-    sim.human_num = 5
+    sim.square_width = 10
+    sim.circle_radius = 5
+    sim.human_num = 7
     sim.nonstop_human = False
-    sim.centralized_planning = True
+    sim.centralized_planning = False
 
     humans = Config()
     humans.visible = True
-    humans.policy = 'orca'
+    humans.policy = 'socialforce'
     humans.radius = 0.3
     humans.v_pref = 1
     humans.sensor = 'coordinates'
 
     robot = Config()
-    robot.visible = False
+    robot.visible = True
     robot.policy = 'none'
     robot.radius = 0.3
     robot.v_pref = 1
@@ -143,7 +142,7 @@ class BaseTrainConfig(object):
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 100
     # training episodes in outer loop
-    train.train_episodes = 10000
+    train.train_episodes = 100
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
     train.target_update_interval = 1000

@@ -29,7 +29,7 @@ class SocialForce(Policy):
         :return:
         """
         sf_state = []
-        self_state = state.self_state
+        self_state = state.robot_state
         sf_state.append((self_state.px, self_state.py, self_state.vx, self_state.vy, self_state.gx, self_state.gy))
         for human_state in state.human_states:
             # approximate desired direction with current velocity
